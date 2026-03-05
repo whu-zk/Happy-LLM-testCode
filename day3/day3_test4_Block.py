@@ -37,7 +37,7 @@ class AddNorm(nn.Module):
 class TransformerLayer(nn.Module):
     def __init__(self, d_model, n_heads, d_ff, dropout=0.1):
         super().__init__()
-        from day2_solution import MultiHeadAttention # 假设你保存了昨天的代码
+        from day2.day2_test2_mha import MultiHeadAttention # 假设你保存了昨天的代码
         
         self.attn = MultiHeadAttention(d_model, n_heads)
         self.ff = FeedForward(d_model, d_ff, dropout)

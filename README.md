@@ -3,6 +3,8 @@
 
 - [Day 1：NLP 概览与文本表示](#day1)
 - [Day 2：核心组件——注意力机制](#day2)
+- [Day 3：Transformer 架构拆解（上）——结构细节](#day3)
+- [Day 4：Transformer 架构拆解（下）——整体组装](#day4)
 
 ---
 
@@ -204,3 +206,178 @@ $$
 - 在线阅读：Happy-LLM 第二章：注意力机制
 - 可视化推荐：访问 Jay Alammar 的 Blog - The Illustrated Transformer。
 - 课程重点：注意力机制的数学表示、为什么要有多头注意力机制、代码实现缩放点积注意力。
+
+---
+
+<a id="day3"></a>
+
+# 📅 Day 3：Transformer 架构拆解（上）—— 结构细节
+
+## 第一阶段：给模型注入"空间感"
+
+**目标：解决 Attention 无法分辨语序的问题（位置编码）。**
+
+### 1. 为什么需要位置编码 (Positional Encoding)?
+- **核心痛点**：Attention 是并行的，对它来说"我吃鱼"和"鱼吃我"的计算结果完全一样。
+- **解决方案**：在词向量（Embedding）上"加上"一个代表位置的向量。
+
+### 2. 正弦余弦编码的数学美感 
+- **公式推导**：理解不同频率的正弦和余弦波如何组合成唯一的坐标。
+- **为什么用这种方式？**：允许模型学习到"相对位置"关系（因为 $\sin(a+b)$ 可以由 $\sin(a)$ 和 $\cos(b)$ 的线性组合表示）。
+
+### 3. 阅读资料
+- 阅读 Happy-LLM 第 2 章：位置编码部分。
+- 思考：为什么是"相加"而不是"拼接"？
+
+---
+
+## 第二阶段：特征的二次加工
+
+**目标：掌握前馈神经网络 (FFN)，理解它如何处理 Attention 提取的信息。**
+
+### 1. 逐位置前馈网络 (Point-wise FFN)
+- **结构**：两个线性层（Linear）中间夹一个激活函数（ReLU 或 GeLU）。
+- **为什么叫"逐位置"？**：同一个句子里，每个单词用的都是同一套 FFN 参数，且单词之间互不干扰。
+- **升维与降维**：通常将维度扩大 4 倍（如 512 -> 2048）再缩回去，目的是在更高维的空间进行非线性映射。
+
+### 2. Checkpoint
+- 对比：Attention 负责"收集信息"，FFN 负责"消化信息"。
+
+---
+
+## 第三阶段：训练的"保命符"——残差与归一化
+
+**目标：理解为什么 Transformer 能堆叠几十层甚至上百层而不崩塌。**
+
+### 1. 残差连接 (Residual Connection/Skip Connection) 
+- **公式**：$$Output = Layer(x) + x$$
+- **原理**：让梯度可以像坐电梯一样直接回到浅层，解决深度网络中的"梯度消失"问题。
+
+### 2. 层归一化 (Layer Normalization)
+- **对比 BN (Batch Norm)**：为什么 NLP 不用 BN？（因为序列长度不固定，Batch 统计不稳定）。
+- **LN 的作用**：将每一层神经元的输出归一化为均值为 0、方差为 1 的分布，加速收敛。
+
+### 3. Post-LN vs Pre-LN
+- **重点**：LLaMA2 使用的是 Pre-LN（在 Attention 前做 Norm），这对稳定大规模训练至关重要。
+
+---
+
+## 第四阶段：手写代码实战
+
+**目标：用 PyTorch 实现今天学到的三个核心模块。**
+
+### 1. 任务 A：实现 PositionalEncoding 类 
+- 使用 `torch.sin` 和 `torch.cos` 构建编码矩阵。
+- 可视化：画出位置编码的热力图，观察斑马线一样的纹路。
+
+### 2. 任务 B：实现 FeedForward 类
+- 使用 `nn.Sequential` 快速搭建：Linear -> ReLU -> Linear。
+
+### 3. 任务 C：封装 AddNorm 模块
+- 实现残差连接和 `nn.LayerNorm`。
+- 维度实验：确保相加时 $Layer(x)$ 和 $x$ 的 Shape 完全一致。
+
+---
+
+## 第五阶段：复盘与架构预览 
+
+### 1. 知识大串联
+- 一个完整的 Transformer 层流程：Input -> PosEncoding -> Attention -> AddNorm -> FFN -> AddNorm。
+
+### 2. 今日闭环
+- 你现在应该能解释：如果不加位置编码，Transformer 会变成什么？
+
+---
+
+## 🛠 Day 3 学习辅助
+
+- 在线阅读：Happy-LLM 第二章：位置编码与 FFN
+- 互动实验：在 Jupyter 中尝试修改 FFN 的中间维度（从 4 倍改到 1 倍），看看参数量和运算速度的变化。
+- 课程重点：位置编码、Transformer 整体架构设计、残差与归一化。
+
+---
+
+<a id="day4"></a>
+
+# 📅 Day 4：Transformer 架构拆解（下）—— 整体组装
+
+## 第一阶段：构建 Encoder 
+
+**目标：将零件封装成层，并堆叠成编码器。**
+
+### 1. Encoder Layer 的封装
+- **结构复习**：Input -> Multi-Head Attention -> Add & Norm -> Feed Forward -> Add & Norm。
+- **代码实现逻辑**：如何使用 `nn.ModuleList` 来管理多个相同的层。
+
+### 2. 数据的流动
+- **理解张量（Tensor）在 Encoder 中的形状变换**：始终保持 $(Batch\_Size, Seq\_Len, Model\_Dim)$。
+- **核心思考**：为什么每一层的输出维度都一样？
+
+---
+
+## 第二阶段：攻克 Decoder
+
+**目标：掌握 Decoder 的特殊结构，特别是"掩码"和"交叉注意力"。**
+
+### 1. 带掩码的自注意力 (Masked Self-Attention)
+- **为什么要掩码？**：在预测第 $n$ 个词时，不能提前看到第 $n+1$ 个词的信息（防止"作弊"）。
+- **实现原理**：Look-ahead Mask（上三角矩阵）。将未来位置的得分设为 $-\infty$，经过 Softmax 后权重变为 0。
+
+### 2. 交叉注意力 (Encoder-Decoder Attention) 
+- **Q、K、V 的来源**：Query 来自 Decoder（我想找什么），Key 和 Value 来自 Encoder 的输出（我有这些背景信息）。
+- **这是 Seq2Seq 模型的核心**：Decoder 根据已生成的词去询问 Encoder 原文的意思。
+
+### 3. 阅读资料
+- 阅读 Happy-LLM 第 2 章：Decoder 详解部分。
+
+---
+
+## 第三阶段：最后的总装与概率输出 
+
+**目标：完成整个 Transformer 类的构建，并理解如何从向量变回文字。**
+
+### 1. Transformer 类的组装
+- 集成 Embedding + Positional Encoding + Encoder + Decoder。
+
+### 2. 线性层与 Softmax 
+- **投影层**：将 $Model\_Dim$ 映射到 $Vocab\_Size$（词表大小）。
+- **Softmax**：将输出转化为每个词出现的概率。
+
+### 3. 损失函数 (Loss Function)
+- **学习交叉熵损失 (Cross-Entropy Loss)**：如何衡量模型预测的概率分布与真实词之间的差距。
+
+---
+
+## 第四阶段：组装与测试
+
+**目标：运行你亲手写出的完整 Transformer 模型。**
+
+### 1. 任务 A：编写 Transformer 类 
+- **要求**：严格按照公式定义 `forward` 函数。
+- **维度追踪（最重要）**：在每一行代码注释中写出 Tensor 的 Shape。例如：`# x: [batch, seq_len, d_model]`。
+
+### 2. 任务 B：维度测试
+- 构造随机张量作为输入：`src = torch.randint(0, vocab_size, (batch, seq_len))`。
+- 执行 `output = model(src, tgt)`。
+- 成功标准：输出 Shape 为 `(batch, target_len, vocab_size)` 且没有报错。
+
+### 3. 任务 C：可视化 Mask
+- 打印并画出 Look-ahead Mask 的矩阵图，确保它是下三角阵。
+
+---
+
+## 第五阶段：复盘与深度思考
+
+### 1. 知识地图梳理
+- 在草稿上画出 Transformer 的简易结构图。
+
+### 2. 今日闭环
+- **核心问题**：如果 Decoder 没有 Mask 会发生什么？
+
+---
+
+## 🔍 Day 4 避坑与调试指南
+
+- **维度对齐**：90% 的报错来自 Linear 层和 Attention 层的维度不匹配。请反复检查 `d_model` 和 `n_heads` 是否能整除。
+- **Device 意识**：确保模型参数和输入张量都在同一个设备上（CPU 或 GPU）。
+- **课程重点**：Transformer 的结构、掩码和交叉注意力的作用、维度对齐。
