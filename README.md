@@ -5,6 +5,7 @@
 - [Day 2：核心组件——注意力机制](#day2)
 - [Day 3：Transformer 架构拆解（上）——结构细节](#day3)
 - [Day 4：Transformer 架构拆解（下）——整体组装](#day4)
+- [Day 5：预训练语言模型 (PLM) 的范式演进](#day5)
 
 ---
 
@@ -381,3 +382,100 @@ $$
 - **维度对齐**：90% 的报错来自 Linear 层和 Attention 层的维度不匹配。请反复检查 `d_model` 和 `n_heads` 是否能整除。
 - **Device 意识**：确保模型参数和输入张量都在同一个设备上（CPU 或 GPU）。
 - **课程重点**：Transformer 的结构、掩码和交叉注意力的作用、维度对齐。
+
+---
+
+<a id="day5"></a>
+
+# 📅 Day 5：预训练语言模型 (PLM) 的范式演进
+
+## 第一阶段：PLM 的“三国鼎立”
+
+**目标：理解 Transformer 的不同零件如何组合成不同的经典模型。**
+
+### 1. Encoder-only (以 BERT 为代表)
+- 核心任务：掩码语言模型 (MLM) ——“完形填空”。
+- 优势：双向理解能力强。
+- 擅长领域：文本分类、命名实体识别 (NER)、情感分析。
+
+### 2. Decoder-only (以 GPT 系列为代表)
+- 核心任务：自回归语言模型 (Causal LM) ——“下一词预测”。
+- 优势：天生适合生成任务，易于扩展规模。
+- 擅长领域：文本生成、对话、创意写作。
+
+### 3. Encoder-Decoder (以 T5, BART 为代表)
+- 核心任务：Seq2Seq 转换。
+- 优势：灵活，将所有 NLP 任务统一为“文本到文本”。
+- 擅长领域：机器翻译、文本摘要。
+
+---
+
+## 第二阶段：深挖——为什么 Decoder-only 赢了？
+
+**目标：理解大模型时代的架构共识。**
+
+### 1. 统一的范式：为什么现在的 LLM 几乎全是 Decoder-only？
+- 零样本/少样本能力 (Zero-shot/Few-shot)：GPT 证明了只要模型足够大，预测下一个词就能学会推理。
+- 计算效率：在推断时，Decoder-only 的 KV Cache 机制非常高效。
+- 训练规模：Decoder-only 架构在超大规模参数下表现最稳定。
+
+### 2. 阅读资料
+- 阅读 Happy-LLM 第 3 章：预训练语言模型演进。
+- 思考题：为什么 BERT 虽然理解能力强，但在做对话机器人时不如 GPT 灵活？
+
+---
+
+## 第三阶段：拥抱生态——Hugging Face 实战
+
+**目标：学会使用工业界标准的库，不再从零重复造轮子。**
+
+### 1. Transformers 库核心组件
+- `AutoTokenizer`：自动加载对应模型的分词器。
+- `AutoModel` / `AutoModelForCausalLM`：自动加载模型架构和权重。
+
+### 2. Pipeline 的魔力
+- 学习用 3 行代码实现：文本分类、生成、翻译。
+
+### 3. 【实战演练】
+- 在 Colab 或本地环境中，分别加载 `bert-base-uncased` 和 `gpt2`。
+- 对比任务：给 BERT 一个带 `[MASK]` 的句子，看它补全什么；给 GPT2 一个开头，看它往下写什么。
+
+---
+
+## 第四阶段：动手体验——生成式模型的威力
+
+**目标：亲手写一个简单的解码策略。**
+
+### 1. 解码策略 (Decoding Strategy) 学习
+- 贪心搜索 (Greedy Search)：永远选概率最大的，容易陷入死循环。
+- 束搜索 (Beam Search)：保留多个候选路径。
+- 采样 (Sampling) 与 温度 (Temperature)：增加生成的多样性和创造性。
+
+### 2. 【代码任务】
+- 使用 GPT-2 模型手动编写一个循环，每次预测一个词，并拼接到输入中，实现简易版的“打字机”生成效果。
+- 尝试调整 `temperature` 参数（0.1 vs 1.0），观察生成内容的逻辑性变化。
+
+---
+
+## 第五阶段：第一阶段复盘与晋级预告
+
+### 1. 五天回顾
+- Day 1: 文本变向量（Embedding）。
+- Day 2: 向量交互（Attention）。
+- Day 3: 架构细节（Positional, FFN, Norm）。
+- Day 4: 总装（Encoder/Decoder）。
+- Day 5: 家族演化（BERT/GPT/T5）。
+
+### 2. 知识通关自测
+- 你能解释从 Word2Vec 到 GPT-4，模型处理上下文信息的能力发生了什么本质变化吗？
+
+### 3. 明日开启：第二阶段——深挖原理
+- 我们将进入“大模型时代”，探讨 Scaling Law（规模法则）和 LLM 的涌现能力。
+
+---
+
+## 🛠 Day 5 学习工具
+
+- 官方文档：Hugging Face Transformers Quickstart
+- 在线体验：Hugging Face Spaces（去玩一玩别人部署好的各种模型）。
+- 课程重点：为什么选择 Decoder-only、Transformers 库实战、解码策略。
