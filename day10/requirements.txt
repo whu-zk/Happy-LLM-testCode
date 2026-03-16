@@ -1,0 +1,6 @@
+torch>=2.0.0
+sentencepiece
+numpy
+tqdm
+tensorboard
+wandb
